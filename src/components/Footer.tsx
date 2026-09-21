@@ -6,6 +6,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Heart,
 } from "lucide-react";
 
 export default function Footer() {
@@ -148,8 +149,21 @@ export default function Footer() {
 
       {/* Bottom bar */}
       <div className="relative border-t border-gray-800 py-6">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
           <p>© {new Date().getFullYear()} AbacusUp. All rights reserved.</p>
+
+          <p className="flex items-center gap-1.5">
+            <span className="text-gray-500">Developed with</span>
+            <Heart
+              className="w-3.5 h-3.5 text-rose-500 fill-rose-500"
+              strokeWidth={2}
+            />
+            <span className="text-gray-500">by</span>
+            <span className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
+              MD Rakib Ali
+            </span>
+          </p>
+
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="hover:text-emerald-400 transition">
               Privacy

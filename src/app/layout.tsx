@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Hind_Siliguri, Anek_Bangla } from "next/font/google";
 import "./globals.css";
 
@@ -22,7 +22,7 @@ const anekBangla = Anek_Bangla({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://abacusup.com"),
+  metadataBase: new URL("https://abacusup-iota.vercel.app"),
   title: {
     default: "AbacusUp — Learn Abacus Online in Bangladesh",
     template: "%s | AbacusUp",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://abacusup.com",
+    url: "https://abacusup-iota.vercel.app",
     siteName: "AbacusUp",
     title: "AbacusUp — Learn Abacus Online in Bangladesh",
     description:
@@ -68,6 +68,14 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
+};
+
+// ✅ Responsive / mobile view-এর জন্য অত্যন্ত জরুরি
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({
