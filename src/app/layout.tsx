@@ -3,13 +3,7 @@ import localFont from "next/font/local";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
-// Lokal fonts setup
-const inter = localFont({
-  src: "../../public/fonts/Inter-Regular.ttf", // Jodi Inter font thake
-  variable: "--font-inter",
-  display: "swap",
-});
-
+// Sudhu bangla font local theke load hobe
 const hindSiliguri = localFont({
   src: [
     { path: "../../public/fonts/HindSiliguri-Regular.ttf", weight: "400", style: "normal" },
@@ -29,7 +23,7 @@ const notoBengali = localFont({
     { path: "../../public/fonts/NotoSansBengali-Bold.ttf", weight: "700", style: "normal" },
     { path: "../../public/fonts/NotoSansBengali-ExtraBold.ttf", weight: "800", style: "normal" },
   ],
-  variable: "--font-anek", // globals.css e change na korte ei name same rakhlam
+  variable: "--font-anek",
   display: "swap",
 });
 
@@ -77,7 +71,7 @@ export default function RootLayout({
   return (
     <html
       lang="bn"
-      className={`${inter.variable} ${hindSiliguri.variable} ${notoBengali.variable}`}
+      className={`${hindSiliguri.variable} ${notoBengali.variable}`}
     >
       <body className="font-bangla antialiased bg-white text-gray-800">
         <AuthProvider>{children}</AuthProvider>
