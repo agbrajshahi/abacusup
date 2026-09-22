@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Search } from "lucide-react";
+import Link from "next/link"; // <-- Notun import
 
 interface Student {
   id: string;
@@ -115,9 +116,12 @@ export default function StudentsPage() {
                         )}
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800">
-                          {student.name || "N/A"}
-                        </p>
+                        {/* Ekhane Link use kora holo */}
+                        <Link href={`/admin/students/${student.id}`}>
+                          <p className="font-semibold text-gray-800 hover:text-emerald-600 cursor-pointer transition-colors">
+                            {student.name || "N/A"}
+                          </p>
+                        </Link>
                         <p className="text-sm text-gray-500">{student.email}</p>
                       </div>
                     </div>

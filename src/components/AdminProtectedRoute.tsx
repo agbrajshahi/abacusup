@@ -13,12 +13,23 @@ export default function AdminProtectedRoute({
   const router = useRouter();
 
   useEffect(() => {
+    // DEBUG LOGS
+    console.log("=== Admin Protected Route Debug ===");
+    console.log("User Email:", user?.email);
+    console.log("User UID:", user?.uid);
+    console.log("User Role:", userRole);
+    console.log("Loading:", loading);
+    console.log("===================================");
+
     if (!loading) {
       if (!user) {
+        console.log("❌ No user logged in → redirecting to /login");
         router.push("/login");
       } else if (userRole !== "admin") {
-        // Admin na hole dashboard e pathiye dao
+        console.log(`❌ Role is "${userRole}", not "admin" → redirecting to /dashboard`);
         router.push("/dashboard");
+      } else {
+        console.log("✅ Access granted! Welcome Admin.");
       }
     }
   }, [user, userRole, loading, router]);
