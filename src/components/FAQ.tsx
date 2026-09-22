@@ -38,60 +38,81 @@ export default function FAQ() {
   };
 
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-3xl mx-auto px-6">
+    <section className="py-10 bg-white">
+      <div className="max-w-2xl mx-auto px-6">
         {/* Heading — compact */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <p className="text-[10px] font-semibold text-emerald-600 mb-2 tracking-[0.2em] uppercase">
             FAQ
           </p>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-            Frequently Asked <span className="text-emerald-600">Questions</span>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">
+            Frequently Asked{" "}
+            <span className="text-emerald-600">Questions</span>
           </h2>
         </div>
 
-        {/* FAQ List — compact */}
-        <div className="space-y-2">
+        {/* FAQ List — compact buttons */}
+        <div className="space-y-1.5">
           {faqs.map((faq, i) => {
             const isOpen = openIndex === i;
             return (
               <div
                 key={i}
-                className={`rounded-lg border transition-colors duration-200 ${
+                className={`group rounded-xl border transition-all duration-300 overflow-hidden ${
                   isOpen
-                    ? "border-emerald-300 bg-emerald-50/40"
-                    : "border-gray-200 bg-white hover:border-emerald-200"
+                    ? "border-emerald-300 bg-emerald-50/60 shadow-sm shadow-emerald-100"
+                    : "border-gray-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/30"
                 }`}
               >
+                {/* Question button */}
                 <button
                   onClick={() => toggle(i)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left"
                 >
+                  {/* Number badge */}
                   <span
-                    className={`text-sm font-medium transition-colors ${
+                    className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                      isOpen
+                        ? "bg-emerald-600 text-white scale-110"
+                        : "bg-gray-100 text-gray-500 group-hover:bg-emerald-100 group-hover:text-emerald-700"
+                    }`}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+
+                  {/* Question text */}
+                  <span
+                    className={`flex-1 text-xs sm:text-sm font-medium transition-colors duration-200 ${
                       isOpen ? "text-emerald-700" : "text-gray-800"
                     }`}
                   >
                     {faq.q}
                   </span>
+
+                  {/* Plus/minus button */}
                   <span
-                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 ${
                       isOpen
-                        ? "bg-emerald-600 text-white rotate-45"
-                        : "bg-gray-100 text-gray-600"
+                        ? "bg-emerald-600 text-white rotate-45 shadow-md shadow-emerald-200"
+                        : "bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-700"
                     }`}
                   >
-                    <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    <Plus className="w-3 h-3" strokeWidth={2.8} />
                   </span>
                 </button>
 
+                {/* Answer — smooth expand */}
                 <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
+                  className={`grid transition-all duration-300 ease-in-out ${
+                    isOpen
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0"
                   }`}
                 >
-                  <div className="px-4 pb-3 text-xs text-gray-600 leading-relaxed">
-                    {faq.a}
+                  <div className="overflow-hidden">
+                    <div className="pl-12 pr-4 pb-3 text-[11px] sm:text-xs text-gray-600 leading-relaxed">
+                      {faq.a}
+                    </div>
                   </div>
                 </div>
               </div>

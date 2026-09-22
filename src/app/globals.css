@@ -173,26 +173,96 @@ body {
   text-shadow: 0 0 24px color-mix(in srgb, var(--accent, #10b981) 40%, transparent);
 }
 
-/* ===== Instructor Card Animations ===== */
+/* ===== Instructor Card + Avatar Animations ===== */
 
 .instructor-card {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .instructor-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-8px) scale(1.02);
   box-shadow:
-    0 20px 35px -12px rgba(16, 185, 129, 0.25),
-    0 0 0 1px rgba(16, 185, 129, 0.4);
+    0 25px 45px -12px rgba(16, 185, 129, 0.3),
+    0 0 0 1px rgba(16, 185, 129, 0.5);
 }
 
+.instructor-card:active {
+  transform: translateY(-4px) scale(1);
+}
+
+/* --- Avatar: smooth zoom in/out (NO rotation) --- */
 .instructor-card .avatar-circle {
-  transition: all 0.4s ease;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.4s ease;
+  will-change: transform;
 }
 
 .instructor-card:hover .avatar-circle {
-  transform: scale(1.08);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.5);
+  transform: scale(1.18);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.6),
+    0 0 0 8px rgba(255, 255, 255, 0.3),
+    0 10px 25px rgba(0, 0, 0, 0.25);
+}
+
+/* --- Click / tap: quick zoom in --- */
+.instructor-card .avatar-circle:active {
+  transform: scale(1.32);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- Pulsing rings (hidden by default) --- */
+.avatar-ring-1,
+.avatar-ring-2 {
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(1);
+}
+
+@keyframes ringPulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+.instructor-card:hover .avatar-ring-1 {
+  animation: ringPulse 2s ease-out infinite;
+}
+
+.instructor-card:hover .avatar-ring-2 {
+  animation: ringPulse 2s ease-out infinite;
+  animation-delay: 1s;
+}
+
+/* ===== Instructors Marquee (Auto-scroll back & forth) ===== */
+
+@keyframes marqueeBack {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.marquee-track {
+  width: max-content;
+  display: flex;
+  animation: marqueeBack 60s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@media (max-width: 768px) {
+  .marquee-track {
+    animation-duration: 80s;
+  }
 }

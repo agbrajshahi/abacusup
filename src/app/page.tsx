@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import Stats from "@/components/Stats";
+import Instructors from "@/components/Instructors";
 import Features from "@/components/Features";
 import Courses from "@/components/Courses";
 import HowItWorks from "@/components/HowItWorks";
-import Instructors from "@/components/Instructors";
-import Testimonials from "@/components/Testimonials";
-import FAQ from "@/components/FAQ";
+import FAQTestimonials from "@/components/FAQTestimonials";
 import Newsletter from "@/components/Newsletter";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -23,13 +21,11 @@ export default function Home() {
     <>
       <Navbar />
       <Hero />
-      <Stats />
+      <Instructors />
       <Features />
       <Courses />
       <HowItWorks />
-      <Instructors />
-      <Testimonials />
-      <FAQ />
+      <FAQTestimonials />
       <Newsletter />
       <Footer />
       <WhatsAppButton />
