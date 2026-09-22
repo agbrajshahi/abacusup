@@ -3,12 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import {
   ArrowLeft,
   Phone,
   Mail,
   ArrowRight,
   MessageCircle,
+  AlertCircle,
 } from "lucide-react";
 
 type Method = "email" | "phone";
@@ -36,12 +39,43 @@ export default function ForgotPasswordPage() {
       }
 
       setLoading(true);
-      // TODO: Firebase sendPasswordResetEmail
-      await new Promise((r) => setTimeout(r, 1200));
-      setLoading(false);
-      router.push(
-        `/forgot-password/sent?method=email&contact=${encodeURIComponent(email)}`
-      );
+
+      try {
+        // ✅ Firebase — send real password reset email
+        await sendPasswordResetEmail(auth, email.trim(), {
+          url: `${window.location.origin}/login`,
+        });
+
+        // Success — go to confirmation page
+        router.push(
+          `/forgot-password/sent?method=email&contact=${encodeURIComponent(
+            email.trim()
+          )}`
+        );
+      } catch (err: unknown) {
+        const error = err as { code?: string };
+        let message = "Failed to send reset email. Please try again.";
+
+        switch (error.code) {
+          case "auth/user-not-found":
+            message =
+              "No account found with this email. Please sign up first.";
+            break;
+          case "auth/invalid-email":
+            message = "Please enter a valid email address.";
+            break;
+          case "auth/too-many-requests":
+            message = "Too many attempts. Please try again in a few minutes.";
+            break;
+          case "auth/network-request-failed":
+            message = "Network error. Check your internet.";
+            break;
+        }
+        setError(message);
+        console.error("Reset email error:", err);
+      } finally {
+        setLoading(false);
+      }
     } else {
       const cleanPhone = phone.replace(/\s/g, "");
       if (!cleanPhone) {
@@ -54,7 +88,7 @@ export default function ForgotPasswordPage() {
       }
 
       setLoading(true);
-      // TODO: Send OTP via SMS / WhatsApp
+      // TODO: Send OTP via SMS / WhatsApp — needs Blaze Plan
       await new Promise((r) => setTimeout(r, 1200));
       setLoading(false);
       router.push(
@@ -96,7 +130,7 @@ export default function ForgotPasswordPage() {
           you a reset link or code.
         </p>
 
-        {/* Tabs */}
+        {/* Method tabs */}
         <div className="mt-6 flex p-1 rounded-xl bg-gray-100">
           <button
             type="button"
@@ -151,7 +185,9 @@ export default function ForgotPasswordPage() {
                   className={inputClass(!!error)}
                 />
               </div>
-              {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+              {error && (
+                <p className="mt-1.5 text-xs text-red-600">{error}</p>
+              )}
               <p className="mt-3 text-xs text-gray-500 leading-relaxed">
                 We'll send a password reset link to this email address.
               </p>
@@ -175,9 +211,19 @@ export default function ForgotPasswordPage() {
                   className={inputClass(!!error)}
                 />
               </div>
-              {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+              {error && (
+                <p className="mt-1.5 text-xs text-red-600">{error}</p>
+              )}
 
-              {/* Delivery via */}
+              {/* SMS info */}
+              <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-800">
+                  Phone verification needs SMS OTP — coming soon. Please use
+                  the Email method for now.
+                </p>
+              </div>
+
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-2 p-2.5 rounded-lg bg-white border border-gray-100">
                   <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />

@@ -1,23 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Hind_Siliguri, Anek_Bangla } from "next/font/google";
+import { Inter, Hind_Siliguri, Noto_Sans_Bengali } from "next/font/google"; // Anek_Bangla bad diye Noto_Sans_Bengali
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
 });
 
 const hindSiliguri = Hind_Siliguri({
-  subsets: ["bengali"],
+  subsets: ["bengali", "latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-hind",
   display: "swap",
 });
 
-const anekBangla = Anek_Bangla({
-  subsets: ["bengali"],
+const notoBengali = Noto_Sans_Bengali({
+  subsets: ["bengali", "latin"],
   weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-anek",
+  variable: "--font-anek", // CSS variable name same rakhlam jate globals.css e change na korte hoy
   display: "swap",
 });
 
@@ -70,7 +72,6 @@ export const metadata: Metadata = {
   },
 };
 
-// ✅ Responsive / mobile view-এর জন্য অত্যন্ত জরুরি
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -86,10 +87,10 @@ export default function RootLayout({
   return (
     <html
       lang="bn"
-      className={`${inter.variable} ${hindSiliguri.variable} ${anekBangla.variable}`}
+      className={`${inter.variable} ${hindSiliguri.variable} ${notoBengali.variable}`}
     >
       <body className="font-bangla antialiased bg-white text-gray-800">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

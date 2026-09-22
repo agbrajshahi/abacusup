@@ -4,6 +4,14 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import {
   Eye,
   EyeOff,
   Lock,
@@ -56,24 +64,30 @@ const months = [
   { value: "12", label: "December" },
 ];
 
-// Days 1..31
 const days = Array.from({ length: 31 }, (_, i) =>
   String(i + 1).padStart(2, "0")
 );
 
-// Years: current year down to current - 80 (for children & adults)
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 81 }, (_, i) =>
   String(currentYear - i)
 );
 
+// ✅ Generate unique student ID like ABU-2026-1234
+function generateStudentId(): string {
+  const year = new Date().getFullYear();
+  const random = Math.floor(1000 + Math.random() * 9000);
+  return `ABU-${year}-${random}`;
+}
+
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/dashboard";
+  const redirect = searchParams.get("redirect") || "/dashboard/profile";
 
   const [form, setForm] = useState({
     name: "",
+    email: "",
     phone: "",
     school: "",
     password: "",
@@ -110,6 +124,9 @@ function SignupForm() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = "Full name is required";
+    if (!form.email.trim()) e.email = "Email is required";
+    else if (!/^\S+@\S+\.\S+$/.test(form.email))
+      e.email = "Please enter a valid email";
     if (!form.phone.trim()) e.phone = "Phone number is required";
     else if (!/^01[3-9]\d{8}$/.test(form.phone.replace(/\s/g, "")))
       e.phone = "Enter a valid BD number (e.g. 01712345678)";
@@ -131,18 +148,126 @@ function SignupForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
     setLoading(true);
-    // TODO: Firebase signup
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    router.push(redirect);
+
+    try {
+      // 1) Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        form.email.trim(),
+        form.password
+      );
+
+      const user = userCredential.user;
+
+      // 2) Update display name
+      await updateProfile(user, {
+        displayName: form.name.trim(),
+      });
+
+      // 3) Generate unique student ID
+      const studentId = generateStudentId();
+
+      // 4) Save profile data in Firestore
+      const dob = `${form.dobYear}-${form.dobMonth}-${form.dobDay}`;
+      await setDoc(doc(db, "students", user.uid), {
+        uid: user.uid,
+        studentId,                      // ✅ Auto-generated
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        school: form.school.trim(),
+        dob,
+        upazila: form.upazila.trim(),
+        city: form.city.trim(),
+        country: form.country,
+        gender: form.gender,
+        photoURL: user.photoURL || "",
+        level: 1,
+        progress: 0,
+        attendance: 0,
+        certificates: [],
+        createdAt: new Date().toISOString(),
+      });
+
+      // 5) Redirect
+      router.push(redirect);
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      let message = "Something went wrong. Please try again.";
+
+      switch (err.code) {
+        case "auth/email-already-in-use":
+          message = "This email is already registered. Please sign in.";
+          setErrors({ email: message });
+          break;
+        case "auth/invalid-email":
+          message = "Please enter a valid email address.";
+          setErrors({ email: message });
+          break;
+        case "auth/weak-password":
+          message = "Password is too weak. Use at least 6 characters.";
+          setErrors({ password: message });
+          break;
+        case "auth/network-request-failed":
+          message = "Network error. Please check your internet.";
+          setErrors({ email: message });
+          break;
+        default:
+          setErrors({ email: message });
+      }
+      console.error("Signup error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleSignup = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    router.push(redirect);
+    setErrors({});
+
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Generate student ID for Google signup
+      const studentId = generateStudentId();
+
+      // Save / merge basic profile
+      await setDoc(
+        doc(db, "students", user.uid),
+        {
+          uid: user.uid,
+          studentId,                    // ✅ Auto-generated
+          name: user.displayName || "",
+          email: user.email || "",
+          photoURL: user.photoURL || "",
+          level: 1,
+          progress: 0,
+          attendance: 0,
+          certificates: [],
+          createdAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      router.push(redirect);
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (
+        err.code !== "auth/popup-closed-by-user" &&
+        err.code !== "auth/cancelled-popup-request"
+      ) {
+        setErrors({
+          email: "Google sign-in failed. Please try again.",
+        });
+      }
+      console.error("Google signup error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass = (field: string) =>
@@ -220,6 +345,25 @@ function SignupForm() {
               {errors.name && <p className="mt-1.5 text-xs text-red-600">{errors.name}</p>}
             </div>
 
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email *
+              </label>
+              <div className="relative">
+                <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="you@example.com"
+                  className={inputClass("email")}
+                />
+              </div>
+              {errors.email && <p className="mt-1.5 text-xs text-red-600">{errors.email}</p>}
+            </div>
+
             {/* Phone */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -239,13 +383,12 @@ function SignupForm() {
               {errors.phone && <p className="mt-1.5 text-xs text-red-600">{errors.phone}</p>}
             </div>
 
-            {/* Date of Birth — Day / Month / Year */}
+            {/* DOB */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Date of Birth *
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {/* Day */}
                 <select
                   name="dobDay"
                   value={form.dobDay}
@@ -258,13 +401,10 @@ function SignupForm() {
                 >
                   <option value="">Day</option>
                   {days.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
+                    <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
 
-                {/* Month */}
                 <select
                   name="dobMonth"
                   value={form.dobMonth}
@@ -277,13 +417,10 @@ function SignupForm() {
                 >
                   <option value="">Month</option>
                   {months.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
+                    <option key={m.value} value={m.value}>{m.label}</option>
                   ))}
                 </select>
 
-                {/* Year */}
                 <select
                   name="dobYear"
                   value={form.dobYear}
@@ -296,9 +433,7 @@ function SignupForm() {
                 >
                   <option value="">Year</option>
                   {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
+                    <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
               </div>
@@ -410,9 +545,7 @@ function SignupForm() {
                   className={selectClass("country")}
                 >
                   {countries.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
                 <svg
@@ -470,13 +603,9 @@ function SignupForm() {
                 />
                 <span className="text-sm text-gray-600">
                   I agree to the{" "}
-                  <Link href="/terms" className="text-emerald-600 font-medium hover:underline">
-                    Terms
-                  </Link>{" "}
+                  <Link href="/terms" className="text-emerald-600 font-medium hover:underline">Terms</Link>{" "}
                   and{" "}
-                  <Link href="/privacy" className="text-emerald-600 font-medium hover:underline">
-                    Privacy Policy
-                  </Link>
+                  <Link href="/privacy" className="text-emerald-600 font-medium hover:underline">Privacy Policy</Link>
                 </span>
               </label>
               {errors.agree && <p className="mt-1.5 text-xs text-red-600">{errors.agree}</p>}

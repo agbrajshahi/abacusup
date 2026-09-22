@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { auth, db } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import {
   ChevronDown,
   Image as ImageIcon,
   Trophy,
   PenTool,
-  LayoutDashboard,
   Settings,
   LogOut,
   User,
@@ -44,28 +47,55 @@ const moreLinks = [
   },
 ];
 
-// Mock user data (Firebase যোগ হলে dynamic হবে)
-const MOCK_USER = {
-  name: "Ayaan Rahman",
-  initials: "AR",
-  level: "Level 3 Student",
-  email: "ayaan.rahman@example.com",
-};
-
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, loading } = useAuth();
 
-  // ✅ Logged in state
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
+  // ✅ NEW: Firestore থেকে user profile data
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("");
+
   const moreRef = useRef<HTMLLIElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+
+  // ✅ Fetch user profile from Firestore (for photo + name)
+  useEffect(() => {
+    if (!user) {
+      setUserPhoto(null);
+      setUserName("");
+      return;
+    }
+
+    const fetchUserProfile = async () => {
+      try {
+        const docRef = doc(db, "students", user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUserPhoto(data.photoURL || user.photoURL || null);
+          setUserName(data.name || user.displayName || "");
+        } else {
+          setUserPhoto(user.photoURL || null);
+          setUserName(user.displayName || "");
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        // Fallback to Auth data
+        setUserPhoto(user.photoURL || null);
+        setUserName(user.displayName || "");
+      }
+    };
+
+    fetchUserProfile();
+  }, [user, pathname]); // ← pathname যোগ করা — Profile পেজে ছবি আপলোড করার পর Navbar আপডেট হবে
 
   // Scroll shadow
   useEffect(() => {
@@ -96,13 +126,39 @@ export default function Navbar() {
     setMobileMoreOpen(false);
   }, [pathname]);
 
-  // Sign out handler
-  const handleSignOut = () => {
-    setIsLoggedIn(false);
+  // ===== Sign out =====
+  const handleSignOut = async () => {
     setUserOpen(false);
     setMobileOpen(false);
     setMobileMoreOpen(false);
-    router.push("/");
+    try {
+      await signOut(auth);
+      router.push("/");
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
+
+  // ===== Get display name =====
+  const getDisplayName = () => {
+    if (userName) return userName;
+    if (user?.displayName) return user.displayName;
+    if (user?.email) return user.email.split("@")[0];
+    return "User";
+  };
+
+  // ===== Get initials =====
+  const getInitials = () => {
+    const name = getDisplayName();
+    if (name) {
+      return name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+    }
+    return "U";
   };
 
   return (
@@ -191,7 +247,6 @@ export default function Navbar() {
                   ))}
                 </div>
 
-                {/* Divider */}
                 <div className="border-t border-gray-100 p-2">
                   <Link
                     href="/teacher"
@@ -218,107 +273,124 @@ export default function Navbar() {
           </li>
         </ul>
 
-        {/* ===== Right: Auth / User ===== */}
-        {isLoggedIn ? (
-          <div className="hidden md:block relative" ref={userRef}>
-            <button
-              onClick={() => setUserOpen(!userOpen)}
-              className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full transition ${
-                userOpen ? "bg-emerald-50" : "hover:bg-gray-50"
-              }`}
-            >
-              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                {MOCK_USER.initials}
-              </span>
-              <span className="text-sm font-medium text-gray-800 max-w-[100px] truncate">
-                {MOCK_USER.name.split(" ")[0]}
-              </span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-gray-500 transition-transform ${
-                  userOpen ? "rotate-180" : ""
+        {/* ===== Right: Auth ===== */}
+        <div className="hidden md:flex items-center gap-2">
+          {loading ? (
+            <div className="w-24 h-8 rounded-full bg-gray-100 animate-pulse" />
+          ) : user ? (
+            /* === LOGGED IN === */
+            <div className="relative" ref={userRef}>
+              <button
+                onClick={() => setUserOpen(!userOpen)}
+                className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full transition ${
+                  userOpen ? "bg-emerald-50" : "hover:bg-gray-50"
                 }`}
-                strokeWidth={2.5}
-              />
-            </button>
-
-            {userOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl border border-gray-100 shadow-2xl shadow-emerald-100/50 overflow-hidden animate-fade-up">
-                {/* User info */}
-                <div className="p-4 border-b border-gray-100 flex items-center gap-3">
-                  <span className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold shrink-0">
-                    {MOCK_USER.initials}
+              >
+                {/* ✅ Avatar — Photo OR Initials */}
+                {userPhoto ? (
+                  <img
+                    src={userPhoto}
+                    alt={getDisplayName()}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-emerald-200 shadow-sm"
+                  />
+                ) : (
+                  <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                    {getInitials()}
                   </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-gray-900 truncate">
-                      {MOCK_USER.name}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {MOCK_USER.level}
-                    </p>
+                )}
+                <span className="text-sm font-medium text-gray-800 max-w-[100px] truncate">
+                  {getDisplayName().split(" ")[0]}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-gray-500 transition-transform ${
+                    userOpen ? "rotate-180" : ""
+                  }`}
+                  strokeWidth={2.5}
+                />
+              </button>
+
+              {userOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl border border-gray-100 shadow-2xl shadow-emerald-100/50 overflow-hidden animate-fade-up">
+                  {/* User info */}
+                  <div className="p-4 border-b border-gray-100 flex items-center gap-3">
+                    {/* ✅ Photo OR Initials in dropdown */}
+                    {userPhoto ? (
+                      <img
+                        src={userPhoto}
+                        alt={getDisplayName()}
+                        className="w-11 h-11 rounded-full object-cover border-2 border-emerald-200 shrink-0"
+                      />
+                    ) : (
+                      <span className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold shrink-0">
+                        {getInitials()}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">
+                        {getDisplayName()}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Links */}
+                  <div className="p-2">
+                    <Link
+                      href="/dashboard/profile"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
+                    >
+                      <User className="w-4 h-4" strokeWidth={2.2} />
+                      My Profile
+                    </Link>
+                    <Link
+                      href="/dashboard/settings"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
+                    >
+                      <Settings className="w-4 h-4" strokeWidth={2.2} />
+                      Settings
+                    </Link>
+                    <Link
+                      href="/teacher"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition"
+                    >
+                      <GraduationCap className="w-4 h-4" strokeWidth={2.2} />
+                      Teacher Panel
+                    </Link>
+                  </div>
+
+                  {/* Sign out */}
+                  <div className="p-2 border-t border-gray-100">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+                    >
+                      <LogOut className="w-4 h-4" strokeWidth={2.2} />
+                      Sign out
+                    </button>
                   </div>
                 </div>
-
-                {/* Links */}
-                <div className="p-2">
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-                  >
-                    <LayoutDashboard className="w-4 h-4" strokeWidth={2.2} />
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/dashboard/profile"
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-                  >
-                    <User className="w-4 h-4" strokeWidth={2.2} />
-                    My Profile
-                  </Link>
-                  <Link
-                    href="/dashboard/settings"
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-                  >
-                    <Settings className="w-4 h-4" strokeWidth={2.2} />
-                    Settings
-                  </Link>
-                  <Link
-                    href="/teacher"
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition"
-                  >
-                    <GraduationCap className="w-4 h-4" strokeWidth={2.2} />
-                    Teacher Panel
-                  </Link>
-                </div>
-
-                {/* Sign out */}
-                <div className="p-2 border-t border-gray-100">
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
-                  >
-                    <LogOut className="w-4 h-4" strokeWidth={2.2} />
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-gray-700 hover:text-emerald-600 transition px-3 py-2"
-            >
-              Login
-            </Link>
-            <Link
-              href="/signup"
-              className="btn-shine px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 flex items-center gap-1.5"
-            >
-              Sign Up →
-            </Link>
-          </div>
-        )}
+              )}
+            </div>
+          ) : (
+            /* === LOGGED OUT === */
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="text-sm font-medium text-gray-700 hover:text-emerald-600 transition px-3 py-2"
+              >
+                Login
+              </Link>
+              <Link
+                href="/signup"
+                className="btn-shine px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 flex items-center gap-1.5"
+              >
+                Sign Up →
+              </Link>
+            </div>
+          )}
+        </div>
 
         {/* ===== Mobile Hamburger ===== */}
         <button
@@ -367,7 +439,6 @@ export default function Navbar() {
             </li>
           ))}
 
-          {/* Mobile More toggle */}
           <li>
             <button
               onClick={() => setMobileMoreOpen(!mobileMoreOpen)}
@@ -412,33 +483,36 @@ export default function Navbar() {
             </div>
           </li>
 
-          {/* Mobile auth / user */}
           <li className="pt-2">
-            {isLoggedIn ? (
+            {loading ? (
+              <div className="px-4 py-2.5">
+                <div className="h-10 rounded-lg bg-gray-100 animate-pulse" />
+              </div>
+            ) : user ? (
               <div className="space-y-2">
-                {/* User info row */}
+                {/* User info */}
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-50">
-                  <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xs font-bold">
-                    {MOCK_USER.initials}
-                  </span>
+                  {userPhoto ? (
+                    <img
+                      src={userPhoto}
+                      alt={getDisplayName()}
+                      className="w-9 h-9 rounded-full object-cover border-2 border-emerald-200"
+                    />
+                  ) : (
+                    <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xs font-bold">
+                      {getInitials()}
+                    </span>
+                  )}
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">
-                      {MOCK_USER.name}
+                      {getDisplayName()}
                     </p>
                     <p className="text-[11px] text-gray-500 truncate">
-                      {MOCK_USER.level}
+                      {user.email}
                     </p>
                   </div>
                 </div>
 
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 text-sm font-medium transition"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Dashboard
-                </Link>
                 <Link
                   href="/dashboard/profile"
                   onClick={() => setMobileOpen(false)}
