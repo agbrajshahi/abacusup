@@ -58,3 +58,8 @@ serviceAccountKey.json
 *.swp
 *.swo
 *~
+
+# ===== Cloudflare =====
+.wrangler/
+.open-next/
+cloudflare-env.d.ts

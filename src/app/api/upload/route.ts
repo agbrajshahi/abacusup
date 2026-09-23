@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { uploadToCloudinary } from "@/lib/cloudinary";
-
-export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,22 +30,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Get Cloudinary config
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      return NextResponse.json(
+        { error: "Cloudinary credentials missing" },
+        { status: 500 }
+      );
+    }
+
+    // Generate signature for Cloudinary
+    const timestamp = Math.floor(Date.now() / 1000);
+    const paramsToSign: Record<string, string> = {
+      timestamp: timestamp.toString(),
+      folder: folder,
+    };
+    if (publicId) paramsToSign.public_id = publicId;
+
+    // Sort params alphabetically and create signature string
+    const sortedParams = Object.keys(paramsToSign)
+      .sort()
+      .map((key) => `${key}=${paramsToSign[key]}`)
+      .join("&");
+
+    const signatureString = sortedParams + apiSecret;
+
+    // Generate SHA-1 hash using Web Crypto API
+    const encoder = new TextEncoder();
+    const data = encoder.encode(signatureString);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Prepare FormData for Cloudinary
+    const cloudFormData = new FormData();
+    cloudFormData.append("file", file);
+    cloudFormData.append("api_key", apiKey);
+    cloudFormData.append("timestamp", timestamp.toString());
+    cloudFormData.append("signature", signature);
+    cloudFormData.append("folder", folder);
+    if (publicId) cloudFormData.append("public_id", publicId);
 
     // Upload to Cloudinary
-    const result = await uploadToCloudinary(buffer, folder, publicId);
+    const uploadRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: "POST",
+        body: cloudFormData,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      console.error("Cloudinary upload failed:", errText);
+      return NextResponse.json(
+        { error: "Cloudinary upload failed: " + errText },
+        { status: 500 }
+      );
+    }
+
+    const result = await uploadRes.json();
 
     return NextResponse.json({
       success: true,
-      url: result.url,
-      publicId: result.publicId,
+      url: result.secure_url,
+      publicId: result.public_id,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error);
     return NextResponse.json(
-      { error: "Upload failed" },
+      { error: error.message || "Upload failed" },
       { status: 500 }
     );
   }
