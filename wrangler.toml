@@ -1,10 +1,10 @@
 name = "abacusup"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+pages_build_output_dir = ".open-next/assets"
 
 [vars]
-NODE_VERSION = "20"
+NODE_VERSION = "22"
 
 # Environment variables will be added via Cloudflare Dashboard
 # DO NOT commit secrets here!
